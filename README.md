@@ -35,7 +35,7 @@ That's it! The app will open in your browser and you can start exploring process
 ### Configuration
 - Set the number of plants and products using the sidebar controls
 - Configure plant capacity
-- Choose demand distribution type (Normal, Uniform, or Exponential)
+- Adjust truncated normal demand distribution parameters (mean, standard deviation, bounds)
 
 ### Network Visualization
 - The bipartite graph shows products on the left and plants on the right
