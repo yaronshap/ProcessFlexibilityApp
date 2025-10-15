@@ -58,21 +58,6 @@ That's it! The app will open in your browser and you can start exploring process
 - Files are automatically timestamped and include network configuration details
 - Progress tracking shows Excel generation status
 
-## Key Concepts
-
-### Process Flexibility
-Process flexibility refers to the ability of manufacturing plants to produce multiple products. This simulator helps explore:
-
-- **Risk Pooling**: How flexibility reduces demand variability
-- **Demand Smoothing**: How connections help balance production loads
-- **Capacity Utilization**: How flexibility improves overall system efficiency
-
-### Jordan & Graves Principles
-The app implements key concepts from the seminal paper:
-- Benefits of manufacturing flexibility
-- Optimal flexibility configurations
-- Trade-offs between flexibility and complexity
-
 ## Technical Details
 
 - Built with Streamlit for interactive web interface
@@ -82,27 +67,3 @@ The app implements key concepts from the seminal paper:
 - OpenPyXL for Excel file generation
 - SciPy for optimization algorithms
 - Real-time progress tracking with Streamlit progress bars
-
-## Educational Use
-
-This simulator is designed for educational purposes to help students understand:
-- Manufacturing flexibility concepts
-- Network optimization principles
-- Demand-supply matching
-- Risk management in operations
-
-## Recent Enhancements
-
-- ✅ **Excel Export Functionality**: Comprehensive multi-sheet Excel reports
-- ✅ **Progress Tracking**: Real-time progress bars for simulations and file generation
-- ✅ **Advanced Flexibility Patterns**: 2-Flexibility and 3-Flexibility chain configurations
-- ✅ **Integer Demand Values**: More realistic demand simulation
-- ✅ **Timestamped Downloads**: Automatic file naming with timestamps and configuration details
-- ✅ **Simplified Access**: No password protection - all features immediately accessible
-
-## Future Enhancements
-
-- Multi-period demand scenarios
-- Cost-benefit analysis
-- Additional flexibility pattern options
-- Interactive sensitivity analysis
