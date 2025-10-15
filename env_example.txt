@@ -1,0 +1,8 @@
+# Environment Variables for Process Flexibility Simulator
+# Copy this file to .env and set your actual values
+
+# Admin password for advanced options (2-Flexibility, 3-Flexibility)
+FLEXIBILITY_ADMIN_PASSWORD=your_secure_password_here
+
+# Note: Never commit the actual .env file to version control
+# Add .env to your .gitignore file
