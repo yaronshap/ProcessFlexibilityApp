@@ -2,6 +2,10 @@
 
 An interactive Streamlit application for exploring manufacturing process flexibility based on the principles from Jordan and Graves (1995) paper "Principles on the Benefits of Manufacturing Process Flexibility".
 
+## 🌐 Try It Online
+
+**Live Demo:** [https://flexibility.streamlit.app/](https://flexibility.streamlit.app/)
+
 ## Features
 
 - **Interactive Bipartite Graph**: Visualize product-plant connections with clickable edges
