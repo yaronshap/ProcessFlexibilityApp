@@ -21,6 +21,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
+# =============================================================================
+# CONFIGURATION VARIABLES
+# =============================================================================
+# Set to True to show Advanced Flexibility Options (2-Flexibility, 3-Flexibility)
+# Set to False to hide these options
+SHOW_ADVANCED_FLEXIBILITY_OPTIONS = True
+
 # Set page config
 st.set_page_config(
     page_title="Process Flexibility Simulator",
@@ -255,7 +262,7 @@ def solve_maximal_matching(demands: List[float], plant_capacity: float,
 
 def run_simulation(num_replications: int, num_products: int, num_plants: int, 
                   plant_capacity: float, connections: Dict[Tuple[int, int], bool],
-                  demand_params: Dict) -> pd.DataFrame:
+                  demand_params: Dict, progress_bar=None) -> pd.DataFrame:
     """Run the simulation and return results as DataFrame"""
     
     results = []
@@ -315,6 +322,10 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
         row['Fill_Rate'] = round(fill_rate, 2)
         
         results.append(row)
+        
+        # Update progress bar if provided
+        if progress_bar is not None:
+            progress_bar.progress((rep + 1) / num_replications)
     
     return pd.DataFrame(results)
 
@@ -372,7 +383,7 @@ def create_summary_stats(results_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(summary_data)
 
 def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: int, 
-                     connections: Dict[Tuple[int, int], bool], num_replications: int) -> bytes:
+                     connections: Dict[Tuple[int, int], bool], num_replications: int, progress_bar=None) -> bytes:
     """Create an Excel file with multiple sheets containing network layout, simulation results, and summary"""
     
     # Create workbook
@@ -380,6 +391,10 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: i
     
     # Remove default sheet
     wb.remove(wb.active)
+    
+    # Update progress
+    if progress_bar is not None:
+        progress_bar.progress(0.1)
     
     # Create styles
     header_font = Font(bold=True, color="FFFFFF")
@@ -439,6 +454,10 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: i
     ws1.cell(row=legend_row + 1, column=1).fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
     ws1.cell(row=legend_row + 2, column=1, value="0 = Not Connected")
     
+    # Update progress after Sheet 1
+    if progress_bar is not None:
+        progress_bar.progress(0.4)
+    
     # Sheet 2: Simulation Results
     ws2 = wb.create_sheet("Simulation Results")
     ws2.title = "Simulation Results"
@@ -456,6 +475,10 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: i
                 cell.fill = header_fill
                 cell.alignment = center_alignment
             cell.border = border
+    
+    # Update progress after Sheet 2
+    if progress_bar is not None:
+        progress_bar.progress(0.7)
     
     # Sheet 3: Summary Statistics
     ws3 = wb.create_sheet("Summary Statistics")
@@ -492,10 +515,18 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: i
             adjusted_width = min(max_length + 2, 50)
             ws.column_dimensions[column_letter].width = adjusted_width
     
+    # Update progress before saving
+    if progress_bar is not None:
+        progress_bar.progress(0.9)
+    
     # Save to bytes
     excel_buffer = io.BytesIO()
     wb.save(excel_buffer)
     excel_buffer.seek(0)
+    
+    # Final progress update
+    if progress_bar is not None:
+        progress_bar.progress(1.0)
     
     return excel_buffer.getvalue()
 
@@ -644,6 +675,12 @@ with col_a:
             del st.session_state.simulation_completed
         if 'simulation_results' in st.session_state:
             del st.session_state.simulation_results
+        if 'excel_ready' in st.session_state:
+            del st.session_state.excel_ready
+        if 'excel_data' in st.session_state:
+            del st.session_state.excel_data
+        if 'excel_filename' in st.session_state:
+            del st.session_state.excel_filename
         st.rerun()
 
 with col_b:
@@ -660,6 +697,12 @@ with col_b:
             del st.session_state.simulation_completed
         if 'simulation_results' in st.session_state:
             del st.session_state.simulation_results
+        if 'excel_ready' in st.session_state:
+            del st.session_state.excel_ready
+        if 'excel_data' in st.session_state:
+            del st.session_state.excel_data
+        if 'excel_filename' in st.session_state:
+            del st.session_state.excel_filename
         st.rerun()
 
 with col_c:
@@ -671,6 +714,12 @@ with col_c:
             del st.session_state.simulation_completed
         if 'simulation_results' in st.session_state:
             del st.session_state.simulation_results
+        if 'excel_ready' in st.session_state:
+            del st.session_state.excel_ready
+        if 'excel_data' in st.session_state:
+            del st.session_state.excel_data
+        if 'excel_filename' in st.session_state:
+            del st.session_state.excel_filename
         st.rerun()
 
 
@@ -697,22 +746,30 @@ st.sidebar.subheader("Simulation Parameters")
 num_replications = st.sidebar.number_input("Number of Replications", min_value=1, max_value=10000, value=100, step=100)
 
 if st.sidebar.button("🚀 Run Simulator", type="primary"):
-    with st.spinner(f"Running simulation with {num_replications} replications..."):
-        # Run the simulation
-        demand_params = {
-            'mean': demand_mean,
-            'std': demand_std,
-            'min': demand_min,
-            'max': demand_max
-        }
-        simulation_results = run_simulation(
-            num_replications, num_products, num_plants, plant_capacity, connections, demand_params
-        )
-        
-        # Store results in session state
-        st.session_state.simulation_results = simulation_results
-        st.session_state.simulation_completed = True
+    # Create progress bar for simulation
+    progress_bar = st.sidebar.progress(0)
+    status_text = st.sidebar.empty()
     
+    # Run the simulation
+    demand_params = {
+        'mean': demand_mean,
+        'std': demand_std,
+        'min': demand_min,
+        'max': demand_max
+    }
+    
+    status_text.text("Running simulation...")
+    simulation_results = run_simulation(
+        num_replications, num_products, num_plants, plant_capacity, connections, demand_params, progress_bar
+    )
+    
+    # Store results in session state
+    st.session_state.simulation_results = simulation_results
+    st.session_state.simulation_completed = True
+    
+    # Clear progress bar and show success
+    progress_bar.empty()
+    status_text.empty()
     st.sidebar.success(f"Simulation completed with {num_replications} replications!")
 
 # Display simulation results and download button
@@ -740,24 +797,43 @@ if st.session_state.get('simulation_completed', False):
     st.subheader("Sample Results (First 10 Replications)")
     st.dataframe(results_df.head(10), use_container_width=True)
     
-    # Download Excel button
-    excel_data = create_excel_file(results_df, num_products, num_plants, connections, num_replications)
+    # Excel download section
+    if st.button("📊 Generate Excel File", type="primary", help="Generate Excel file with network layout, simulation results, and summary statistics"):
+        # Create progress bar for Excel generation
+        excel_progress = st.progress(0)
+        excel_status = st.empty()
+        
+        # Count number of selected edges (connections)
+        num_edges = sum(1 for connected in connections.values() if connected)
+        
+        # Generate timestamp
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        excel_status.text("Generating Excel file...")
+        excel_data = create_excel_file(results_df, num_products, num_plants, connections, num_replications, excel_progress)
+        
+        # Clear progress indicators
+        excel_progress.empty()
+        excel_status.empty()
+        
+        # Store Excel data in session state
+        st.session_state.excel_data = excel_data
+        st.session_state.excel_filename = f"{timestamp}_flexibility_simulation_{num_products}products_{num_plants}plants_{num_edges}edges_{num_replications}reps.xlsx"
+        st.session_state.excel_ready = True
+        
+        st.success("Excel file generated successfully!")
     
-    # Count number of selected edges (connections)
-    num_edges = sum(1 for connected in connections.values() if connected)
-    
-    # Generate timestamp
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    st.download_button(
-        label="📊 Download Excel Results",
-        data=excel_data,
-        file_name=f"{timestamp}_flexibility_simulation_{num_products}products_{num_plants}plants_{num_edges}edges_{num_replications}reps.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary",
-        help="Download Excel file with network layout, simulation results, and summary statistics"
-    )
+    # Show download button if Excel file is ready
+    if st.session_state.get('excel_ready', False):
+        st.download_button(
+            label="📥 Download Excel Results",
+            data=st.session_state.excel_data,
+            file_name=st.session_state.excel_filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="secondary",
+            help="Download the generated Excel file"
+        )
 
 # Display demand data if available
 if st.session_state.demand_data:
@@ -838,34 +914,11 @@ st.sidebar.markdown("**Email:** yaron.shaposhnik@simon.rochester.edu")
 st.sidebar.markdown("**Year:** 2025")
 st.sidebar.markdown("*Process Flexibility Simulation Tool*")
 
-# Advanced options button at the bottom
-if st.sidebar.button("Advanced Options", key="advanced_options", help="Click to show advanced options"):
-    st.session_state.show_advanced = True
-
-# Password protection for advanced options (appears right below unlock button)
-if st.session_state.get('show_advanced', False):
-    password = st.sidebar.text_input("Enter password for advanced options:", type="password")
-    # Get password from environment variable
-    admin_password = os.getenv("FLEXIBILITY_ADMIN_PASSWORD")
-    
-    if admin_password is None:
-        st.sidebar.error("⚠️ Advanced options not configured. Set FLEXIBILITY_ADMIN_PASSWORD environment variable.")
-    elif password == admin_password:
-        st.session_state.advanced_unlocked = True
-        st.sidebar.success("Advanced options unlocked!")
-    elif password != "":
-        st.sidebar.error("Incorrect password")
-    
-    if st.sidebar.button("🔒 Hide Advanced Options"):
-        st.session_state.show_advanced = False
-        st.session_state.advanced_unlocked = False
-        st.rerun()
-
-# Advanced flexibility buttons (only show if unlocked)
-if st.session_state.get('advanced_unlocked', False):
+# Advanced flexibility buttons (controlled by SHOW_ADVANCED_FLEXIBILITY_OPTIONS)
+if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
     st.sidebar.markdown("**Advanced Flexibility Options:**")
     col_d, col_e = st.sidebar.columns(2)
-    
+
     with col_d:
         if st.sidebar.button("2-Flexibility", help="Create 2-chain flexibility pattern"):
             connections.clear()
@@ -882,6 +935,12 @@ if st.session_state.get('advanced_unlocked', False):
                 del st.session_state.simulation_completed
             if 'simulation_results' in st.session_state:
                 del st.session_state.simulation_results
+            if 'excel_ready' in st.session_state:
+                del st.session_state.excel_ready
+            if 'excel_data' in st.session_state:
+                del st.session_state.excel_data
+            if 'excel_filename' in st.session_state:
+                del st.session_state.excel_filename
             st.rerun()
 
     with col_e:
@@ -902,5 +961,11 @@ if st.session_state.get('advanced_unlocked', False):
                 del st.session_state.simulation_completed
             if 'simulation_results' in st.session_state:
                 del st.session_state.simulation_results
+            if 'excel_ready' in st.session_state:
+                del st.session_state.excel_ready
+            if 'excel_data' in st.session_state:
+                del st.session_state.excel_data
+            if 'excel_filename' in st.session_state:
+                del st.session_state.excel_filename
             st.rerun()
 
