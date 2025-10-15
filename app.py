@@ -17,6 +17,9 @@ import json
 import io
 import os
 from scipy.optimize import linprog
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 # Set page config
 st.set_page_config(
@@ -315,6 +318,187 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
     
     return pd.DataFrame(results)
 
+def create_network_matrix(num_products: int, num_plants: int, connections: Dict[Tuple[int, int], bool]) -> pd.DataFrame:
+    """Create a matrix representation of the network connections"""
+    # Create matrix with products as rows and plants as columns
+    matrix_data = []
+    for product_idx in range(num_products):
+        row = []
+        for plant_idx in range(num_plants):
+            # 1 if connected, 0 if not connected
+            row.append(1 if connections.get((product_idx, plant_idx), False) else 0)
+        matrix_data.append(row)
+    
+    # Create DataFrame with proper labels
+    columns = [f"Plant {i+1}" for i in range(num_plants)]
+    index = [f"Product {i+1}" for i in range(num_products)]
+    
+    return pd.DataFrame(matrix_data, columns=columns, index=index)
+
+def create_summary_stats(results_df: pd.DataFrame) -> pd.DataFrame:
+    """Create summary statistics from simulation results"""
+    summary_data = {
+        'Metric': [
+            'Average Fill Rate (%)',
+            'Std Dev Fill Rate (%)',
+            'Min Fill Rate (%)',
+            'Max Fill Rate (%)',
+            'Average Units Sold',
+            'Std Dev Units Sold',
+            'Min Units Sold',
+            'Max Units Sold',
+            'Average Units Lost',
+            'Std Dev Units Lost',
+            'Min Units Lost',
+            'Max Units Lost',
+            'Total Replications'
+        ],
+        'Value': [
+            round(results_df['Fill_Rate'].mean(), 2),
+            round(results_df['Fill_Rate'].std(), 2),
+            round(results_df['Fill_Rate'].min(), 2),
+            round(results_df['Fill_Rate'].max(), 2),
+            round(results_df['Units_Sold'].mean(), 2),
+            round(results_df['Units_Sold'].std(), 2),
+            round(results_df['Units_Sold'].min(), 2),
+            round(results_df['Units_Sold'].max(), 2),
+            round(results_df['Units_Lost'].mean(), 2),
+            round(results_df['Units_Lost'].std(), 2),
+            round(results_df['Units_Lost'].min(), 2),
+            round(results_df['Units_Lost'].max(), 2),
+            len(results_df)
+        ]
+    }
+    return pd.DataFrame(summary_data)
+
+def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: int, 
+                     connections: Dict[Tuple[int, int], bool], num_replications: int) -> bytes:
+    """Create an Excel file with multiple sheets containing network layout, simulation results, and summary"""
+    
+    # Create workbook
+    wb = Workbook()
+    
+    # Remove default sheet
+    wb.remove(wb.active)
+    
+    # Create styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Sheet 1: Network Layout
+    ws1 = wb.create_sheet("Network Layout")
+    ws1.title = "Network Layout"
+    
+    # Add title
+    ws1['A1'] = "Network Configuration Matrix"
+    ws1['A1'].font = Font(bold=True, size=14)
+    ws1['A2'] = f"Products: {num_products}, Plants: {num_plants}"
+    ws1['A2'].font = Font(italic=True)
+    
+    # Create network matrix
+    network_matrix = create_network_matrix(num_products, num_plants, connections)
+    
+    # Add matrix to sheet starting at row 4
+    start_row = 4
+    for r_idx, (product, row_data) in enumerate(network_matrix.iterrows()):
+        ws1.cell(row=start_row + r_idx, column=1, value=product)
+        for c_idx, value in enumerate(row_data):
+            cell = ws1.cell(row=start_row + r_idx, column=c_idx + 2, value=value)
+            if value == 1:
+                cell.fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+            cell.border = border
+            cell.alignment = center_alignment
+    
+    # Add column headers
+    for c_idx, col_name in enumerate(network_matrix.columns):
+        cell = ws1.cell(row=start_row - 1, column=c_idx + 2, value=col_name)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = center_alignment
+    
+    # Add row header
+    ws1.cell(row=start_row - 1, column=1, value="Products")
+    ws1.cell(row=start_row - 1, column=1).font = header_font
+    ws1.cell(row=start_row - 1, column=1).fill = header_fill
+    ws1.cell(row=start_row - 1, column=1).border = border
+    ws1.cell(row=start_row - 1, column=1).alignment = center_alignment
+    
+    # Add legend
+    legend_row = start_row + num_products + 2
+    ws1.cell(row=legend_row, column=1, value="Legend:")
+    ws1.cell(row=legend_row, column=1).font = Font(bold=True)
+    ws1.cell(row=legend_row + 1, column=1, value="1 = Connected")
+    ws1.cell(row=legend_row + 1, column=1).fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
+    ws1.cell(row=legend_row + 2, column=1, value="0 = Not Connected")
+    
+    # Sheet 2: Simulation Results
+    ws2 = wb.create_sheet("Simulation Results")
+    ws2.title = "Simulation Results"
+    
+    # Add title
+    ws2['A1'] = f"Simulation Results ({num_replications} Replications)"
+    ws2['A1'].font = Font(bold=True, size=14)
+    
+    # Add simulation data
+    for r_idx, row in enumerate(dataframe_to_rows(results_df, index=False, header=True), 1):
+        for c_idx, value in enumerate(row, 1):
+            cell = ws2.cell(row=r_idx + 2, column=c_idx, value=value)
+            if r_idx == 1:  # Header row
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+            cell.border = border
+    
+    # Sheet 3: Summary Statistics
+    ws3 = wb.create_sheet("Summary Statistics")
+    ws3.title = "Summary Statistics"
+    
+    # Add title
+    ws3['A1'] = "Summary Statistics"
+    ws3['A1'].font = Font(bold=True, size=14)
+    
+    # Create summary data
+    summary_df = create_summary_stats(results_df)
+    
+    # Add summary data
+    for r_idx, row in enumerate(dataframe_to_rows(summary_df, index=False, header=True), 1):
+        for c_idx, value in enumerate(row, 1):
+            cell = ws3.cell(row=r_idx + 2, column=c_idx, value=value)
+            if r_idx == 1:  # Header row
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+            cell.border = border
+    
+    # Auto-adjust column widths
+    for ws in [ws1, ws2, ws3]:
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Save to bytes
+    excel_buffer = io.BytesIO()
+    wb.save(excel_buffer)
+    excel_buffer.seek(0)
+    
+    return excel_buffer.getvalue()
+
 # Main app
 st.title("🏭 Process Flexibility Simulator")
 st.markdown("Based on Jordan and Graves (1995): 'Principles on the Benefits of Manufacturing Process Flexibility'")
@@ -556,15 +740,23 @@ if st.session_state.get('simulation_completed', False):
     st.subheader("Sample Results (First 10 Replications)")
     st.dataframe(results_df.head(10), use_container_width=True)
     
-    # Download button
-    csv_data = results_df.to_csv(index=False)
+    # Download Excel button
+    excel_data = create_excel_file(results_df, num_products, num_plants, connections, num_replications)
+    
+    # Count number of selected edges (connections)
+    num_edges = sum(1 for connected in connections.values() if connected)
+    
+    # Generate timestamp
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     st.download_button(
-        label="📥 Download CSV Results",
-        data=csv_data,
-        file_name=f"flexibility_simulation_{num_products}products_{num_plants}plants_{num_replications}reps.csv",
-        mime="text/csv",
-        type="primary"
+        label="📊 Download Excel Results",
+        data=excel_data,
+        file_name=f"{timestamp}_flexibility_simulation_{num_products}products_{num_plants}plants_{num_edges}edges_{num_replications}reps.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+        help="Download Excel file with network layout, simulation results, and summary statistics"
     )
 
 # Display demand data if available
