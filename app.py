@@ -1,5 +1,5 @@
 # =============================================================================
-# ⚠️  WARNING: THIS PROJECT IS CURRENTLY UNDER CONSTRUCTION  ⚠️
+# ⚠️  WARNING: THIS PROJECT IS CURRENTLY UNDER CONSTRUCTION   ⚠️
 # =============================================================================
 # This application is in active development. Features may be incomplete,
 # unstable, or subject to change. Please use with caution.
