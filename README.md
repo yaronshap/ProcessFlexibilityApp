@@ -10,8 +10,10 @@ An interactive Streamlit application for exploring manufacturing process flexibi
 
 - **Interactive Bipartite Graph**: Visualize product-plant connections with clickable edges
 - **Flexibility Configuration**: Toggle connections between products and plants
-- **Demand Simulation**: Generate and visualize demand distributions
-- **Optimization Analysis**: Calculate flexibility benefits and system metrics
+- **Advanced Flexibility Patterns**: 2-Flexibility and 3-Flexibility chain patterns
+- **Demand Simulation**: Generate and visualize demand distributions with progress tracking
+- **Monte Carlo Simulation**: Run multiple replications with real-time progress bars
+- **Excel Export**: Download comprehensive results with network layout, simulation data, and summary statistics
 - **Real-time Metrics**: Track flexibility ratios, capacity utilization, and risk pooling benefits
 
 ## Installation
@@ -21,38 +23,12 @@ An interactive Streamlit application for exploring manufacturing process flexibi
 pip install -r requirements.txt
 ```
 
-2. Set up environment variables (optional, for secure deployment):
-```bash
-# Copy the example file
-cp env_example.txt .env
-
-# Edit .env and set your admin password
-FLEXIBILITY_ADMIN_PASSWORD=your_secure_password_here
-```
-
-3. Run the Streamlit app:
+2. Run the Streamlit app:
 ```bash
 streamlit run app.py
 ```
 
-## Security Configuration
-
-For secure deployment (especially on GitHub or public platforms):
-
-1. **Environment Variables**: Set the `FLEXIBILITY_ADMIN_PASSWORD` environment variable
-2. **Git Ignore**: Add `.env` to your `.gitignore` file to prevent committing secrets
-3. **Default Password**: If no environment variable is set, the app uses a default password
-4. **Advanced Options**: The 2-Flexibility and 3-Flexibility features are password-protected
-
-### Deployment Options
-
-**Local Development:**
-- Uses default password: `flexibility2025`
-- No additional setup required
-
-**Production/Public Deployment:**
-- Set environment variable: `FLEXIBILITY_ADMIN_PASSWORD=your_secure_password`
-- Never commit the actual password to version control
+That's it! The app will open in your browser and you can start exploring process flexibility immediately.
 
 ## Usage
 
@@ -67,16 +43,20 @@ For secure deployment (especially on GitHub or public platforms):
 - Solid blue lines represent active connections (flexibility)
 - Use the sidebar buttons to toggle specific connections
 - Use "Full Flexibility" and "No Flexibility" buttons for quick setup
+- Try "2-Flexibility" and "3-Flexibility" for advanced chain patterns
 
-### Demand Simulation
-- Click "Generate Demand Data" to create demand scenarios
-- View demand distribution histograms
-- Analyze demand statistics and system utilization
+### Simulation & Analysis
+- Click "🚀 Run Simulator" to start Monte Carlo simulation
+- Watch real-time progress bars as replications complete
+- View comprehensive metrics including fill rates, units sold, and units lost
+- Generate Excel reports with network layout, simulation results, and summary statistics
+- Download timestamped Excel files with detailed analysis
 
-### Optimization Analysis
-- Run optimization to calculate flexibility benefits
-- View risk pooling, demand smoothing, and capacity utilization metrics
-- Compare different flexibility configurations
+### Results Export
+- Click "📊 Generate Excel File" to create comprehensive reports
+- Excel files include three sheets: Network Layout, Simulation Results, and Summary Statistics
+- Files are automatically timestamped and include network configuration details
+- Progress tracking shows Excel generation status
 
 ## Key Concepts
 
@@ -99,6 +79,9 @@ The app implements key concepts from the seminal paper:
 - Uses NetworkX for graph operations
 - Plotly for interactive visualizations
 - NumPy and Pandas for data analysis
+- OpenPyXL for Excel file generation
+- SciPy for optimization algorithms
+- Real-time progress tracking with Streamlit progress bars
 
 ## Educational Use
 
@@ -108,9 +91,18 @@ This simulator is designed for educational purposes to help students understand:
 - Demand-supply matching
 - Risk management in operations
 
+## Recent Enhancements
+
+- ✅ **Excel Export Functionality**: Comprehensive multi-sheet Excel reports
+- ✅ **Progress Tracking**: Real-time progress bars for simulations and file generation
+- ✅ **Advanced Flexibility Patterns**: 2-Flexibility and 3-Flexibility chain configurations
+- ✅ **Integer Demand Values**: More realistic demand simulation
+- ✅ **Timestamped Downloads**: Automatic file naming with timestamps and configuration details
+- ✅ **Simplified Access**: No password protection - all features immediately accessible
+
 ## Future Enhancements
 
-- Advanced optimization algorithms
 - Multi-period demand scenarios
 - Cost-benefit analysis
-- Export functionality for results
+- Additional flexibility pattern options
+- Interactive sensitivity analysis
