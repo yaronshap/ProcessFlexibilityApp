@@ -508,7 +508,7 @@ st.markdown("Based on Jordan and Graves (1995): 'Principles on the Benefits of M
 st.sidebar.info("**🏗️ Network Configuration**")
 
 # Input fields
-num_plants_products = st.sidebar.number_input("Number of Plants and Products", min_value=1, max_value=10, value=3)
+num_plants_products = st.sidebar.number_input("Number of Plants and Products", min_value=1, max_value=10, value=6)
 num_plants = num_plants_products
 num_products = num_plants_products
 plant_capacity = st.sidebar.number_input("Plant Capacity", min_value=1, max_value=1000, value=100)
