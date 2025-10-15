@@ -156,8 +156,8 @@ def generate_demand_data(num_products: int, distribution_type: str, params: Dict
             raw_demands = np.random.normal(mean, std, 2000)  # Generate more to account for truncation
             # Truncate to specified range
             truncated_demands = np.clip(raw_demands, min_val, max_val)
-            # Take first 1000 samples
-            demand_data[i] = truncated_demands[:1000]
+            # Round to integers and take first 1000 samples
+            demand_data[i] = np.round(truncated_demands[:1000]).astype(int)
     
     return demand_data
 
@@ -274,7 +274,7 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
         for _ in range(num_products):
             raw_demand = np.random.normal(mean, std)
             truncated_demand = np.clip(raw_demand, min_val, max_val)
-            demands.append(truncated_demand)
+            demands.append(round(truncated_demand))
         
         # Solve maximal matching
         flows, total_shipped, total_lost = solve_maximal_matching(
@@ -845,9 +845,12 @@ if st.sidebar.button("Advanced Options", key="advanced_options", help="Click to 
 # Password protection for advanced options (appears right below unlock button)
 if st.session_state.get('show_advanced', False):
     password = st.sidebar.text_input("Enter password for advanced options:", type="password")
-    # Get password from environment variable or use default
-    admin_password = os.getenv("FLEXIBILITY_ADMIN_PASSWORD", "flexibility2025")
-    if password == admin_password:
+    # Get password from environment variable
+    admin_password = os.getenv("FLEXIBILITY_ADMIN_PASSWORD")
+    
+    if admin_password is None:
+        st.sidebar.error("⚠️ Advanced options not configured. Set FLEXIBILITY_ADMIN_PASSWORD environment variable.")
+    elif password == admin_password:
         st.session_state.advanced_unlocked = True
         st.sidebar.success("Advanced options unlocked!")
     elif password != "":
