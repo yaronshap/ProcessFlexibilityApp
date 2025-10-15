@@ -556,27 +556,30 @@ demand_max = st.sidebar.number_input("Upper Bound", min_value=1.0, max_value=100
 distribution_type = "Truncated Normal"
 
 # Initialize connections if not exists
-if f'connections_{num_plants}_{num_products}' not in st.session_state:
-    st.session_state[f'connections_{num_plants}_{num_products}'] = {}
+session_key = f'connections_{num_plants}_{num_products}'
+if session_key not in st.session_state:
+    st.session_state[session_key] = {}
     # Set "No Flexibility" as default only for new configurations
-    connections = {}
+    default_connections = {}
     for product_idx in range(num_products):
         # Use modulo to cycle through plants, ensuring different assignments when possible
         plant_idx = product_idx % num_plants
-        connections[(product_idx, plant_idx)] = True
-    st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        default_connections[(product_idx, plant_idx)] = True
+    st.session_state[session_key] = default_connections
 
-connections = st.session_state[f'connections_{num_plants}_{num_products}']
+# Get connections with fallback
+connections = st.session_state.get(session_key, {})
 
 # Add connection toggle functionality
 def toggle_connection(product_idx: int, plant_idx: int):
     """Toggle connection between product and plant"""
     key = (product_idx, plant_idx)
-    if key in connections:
-        connections[key] = not connections[key]
+    current_connections = st.session_state.get(session_key, {})
+    if key in current_connections:
+        current_connections[key] = not current_connections[key]
     else:
-        connections[key] = True
-    st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        current_connections[key] = True
+    st.session_state[session_key] = current_connections
     st.rerun()
 
 # Add connection grid controls
@@ -613,20 +616,19 @@ if st.sidebar.checkbox("Compact Grid View", value=True):
             is_connected = connections.get(key, False)
             
             with row_cols[plant_idx + 1]:
-                if st.checkbox(
+                checkbox_key = f"compact_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
+                new_value = st.checkbox(
                     "",
                     value=is_connected,
-                    key=f"compact_{product_idx}_{plant_idx}"
-                ):
-                    if not is_connected:
-                        connections[key] = True
-                        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
-                        st.rerun()
-                else:
-                    if is_connected:
-                        connections[key] = False
-                        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
-                        st.rerun()
+                    key=checkbox_key
+                )
+                
+                # Update connections if checkbox state changed
+                if new_value != is_connected:
+                    current_connections = st.session_state.get(session_key, {})
+                    current_connections[key] = new_value
+                    st.session_state[session_key] = current_connections
+                    st.rerun()
 
 else:
     # Detailed view: Each product gets its own section
@@ -666,10 +668,12 @@ col_a, col_b, col_c = st.sidebar.columns(3)
 
 with col_a:
     if st.button("Full Flexibility", help="Connect all products to all plants"):
+        # Create new connections dictionary
+        new_connections = {}
         for product_idx in range(num_products):
             for plant_idx in range(num_plants):
-                connections[(product_idx, plant_idx)] = True
-        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+                new_connections[(product_idx, plant_idx)] = True
+        st.session_state[session_key] = new_connections
         # Clear previous simulation results since network configuration changed
         if 'simulation_completed' in st.session_state:
             del st.session_state.simulation_completed
@@ -685,13 +689,14 @@ with col_a:
 
 with col_b:
     if st.button("No Flexibility", help="Connect each product to one plant (dedicated assignment)"):
-        connections.clear()
+        # Create new connections dictionary
+        new_connections = {}
         # Connect each product to a single plant, preferably different ones
         for product_idx in range(num_products):
             # Use modulo to cycle through plants, ensuring different assignments when possible
             plant_idx = product_idx % num_plants
-            connections[(product_idx, plant_idx)] = True
-        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+            new_connections[(product_idx, plant_idx)] = True
+        st.session_state[session_key] = new_connections
         # Clear previous simulation results since network configuration changed
         if 'simulation_completed' in st.session_state:
             del st.session_state.simulation_completed
@@ -707,8 +712,8 @@ with col_b:
 
 with col_c:
     if st.button("Remove Connections", help="Remove all connections"):
-        connections.clear()
-        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        # Create empty connections dictionary
+        st.session_state[session_key] = {}
         # Clear previous simulation results since network configuration changed
         if 'simulation_completed' in st.session_state:
             del st.session_state.simulation_completed
@@ -727,6 +732,9 @@ with col_c:
 
 
 # Main content area - just the graph
+# Refresh connections from session state to ensure consistency
+connections = st.session_state.get(session_key, {})
+
 # Create the graph
 fig = create_bipartite_graph(num_plants, num_products, connections)
 st.plotly_chart(fig, use_container_width=True)
@@ -921,15 +929,16 @@ if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
 
     with col_d:
         if st.sidebar.button("2-Flexibility", help="Create 2-chain flexibility pattern"):
-            connections.clear()
+            # Create new connections dictionary
+            new_connections = {}
             # Create 2-chain pattern: P1→Plant1,Plant2; P2→Plant2,Plant3; P3→Plant3,Plant1; etc.
             for product_idx in range(num_products):
                 # Each product connects to 2 plants in a chain pattern
                 plant1_idx = product_idx % num_plants
                 plant2_idx = (product_idx + 1) % num_plants
-                connections[(product_idx, plant1_idx)] = True
-                connections[(product_idx, plant2_idx)] = True
-            st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+                new_connections[(product_idx, plant1_idx)] = True
+                new_connections[(product_idx, plant2_idx)] = True
+            st.session_state[session_key] = new_connections
             # Clear previous simulation results since network configuration changed
             if 'simulation_completed' in st.session_state:
                 del st.session_state.simulation_completed
@@ -945,17 +954,18 @@ if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
 
     with col_e:
         if st.sidebar.button("3-Flexibility", help="Create 3-chain flexibility pattern"):
-            connections.clear()
+            # Create new connections dictionary
+            new_connections = {}
             # Create 3-chain pattern: P1→Plant1,Plant2,Plant3; P2→Plant2,Plant3,Plant1; etc.
             for product_idx in range(num_products):
                 # Each product connects to 3 plants in a chain pattern
                 plant1_idx = product_idx % num_plants
                 plant2_idx = (product_idx + 1) % num_plants
                 plant3_idx = (product_idx + 2) % num_plants
-                connections[(product_idx, plant1_idx)] = True
-                connections[(product_idx, plant2_idx)] = True
-                connections[(product_idx, plant3_idx)] = True
-            st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+                new_connections[(product_idx, plant1_idx)] = True
+                new_connections[(product_idx, plant2_idx)] = True
+                new_connections[(product_idx, plant3_idx)] = True
+            st.session_state[session_key] = new_connections
             # Clear previous simulation results since network configuration changed
             if 'simulation_completed' in st.session_state:
                 del st.session_state.simulation_completed
