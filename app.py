@@ -1,3 +1,10 @@
+# =============================================================================
+# ⚠️  WARNING: THIS PROJECT IS CURRENTLY UNDER CONSTRUCTION  ⚠️
+# =============================================================================
+# This application is in active development. Features may be incomplete,
+# unstable, or subject to change. Please use with caution.
+# =============================================================================
+
 import streamlit as st
 import networkx as nx
 import plotly.graph_objects as go
@@ -17,6 +24,11 @@ st.set_page_config(
     page_icon="🏭",
     layout="wide"
 )
+
+# Display construction warning banner
+st.error("⚠️ **WARNING: This project is currently under construction!** ⚠️\n\n"
+         "This application is in active development. Features may be incomplete, "
+         "unstable, or subject to change. Please use with caution.", icon="🚧")
 
 # Initialize session state
 if 'connections' not in st.session_state:
