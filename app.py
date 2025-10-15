@@ -455,6 +455,11 @@ with col_a:
             for plant_idx in range(num_plants):
                 connections[(product_idx, plant_idx)] = True
         st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        # Clear previous simulation results since network configuration changed
+        if 'simulation_completed' in st.session_state:
+            del st.session_state.simulation_completed
+        if 'simulation_results' in st.session_state:
+            del st.session_state.simulation_results
         st.rerun()
 
 with col_b:
@@ -466,12 +471,22 @@ with col_b:
             plant_idx = product_idx % num_plants
             connections[(product_idx, plant_idx)] = True
         st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        # Clear previous simulation results since network configuration changed
+        if 'simulation_completed' in st.session_state:
+            del st.session_state.simulation_completed
+        if 'simulation_results' in st.session_state:
+            del st.session_state.simulation_results
         st.rerun()
 
 with col_c:
     if st.button("Remove Connections", help="Remove all connections"):
         connections.clear()
         st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+        # Clear previous simulation results since network configuration changed
+        if 'simulation_completed' in st.session_state:
+            del st.session_state.simulation_completed
+        if 'simulation_results' in st.session_state:
+            del st.session_state.simulation_results
         st.rerun()
 
 
@@ -667,6 +682,11 @@ if st.session_state.get('advanced_unlocked', False):
                 connections[(product_idx, plant1_idx)] = True
                 connections[(product_idx, plant2_idx)] = True
             st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+            # Clear previous simulation results since network configuration changed
+            if 'simulation_completed' in st.session_state:
+                del st.session_state.simulation_completed
+            if 'simulation_results' in st.session_state:
+                del st.session_state.simulation_results
             st.rerun()
 
     with col_e:
@@ -682,5 +702,10 @@ if st.session_state.get('advanced_unlocked', False):
                 connections[(product_idx, plant2_idx)] = True
                 connections[(product_idx, plant3_idx)] = True
             st.session_state[f'connections_{num_plants}_{num_products}'] = connections
+            # Clear previous simulation results since network configuration changed
+            if 'simulation_completed' in st.session_state:
+                del st.session_state.simulation_completed
+            if 'simulation_results' in st.session_state:
+                del st.session_state.simulation_results
             st.rerun()
 
