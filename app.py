@@ -620,7 +620,8 @@ if st.sidebar.checkbox("Compact Grid View", value=True):
                 new_value = st.checkbox(
                     "",
                     value=is_connected,
-                    key=checkbox_key
+                    key=checkbox_key,
+                    label_visibility="collapsed"
                 )
                 
                 # Update connections if checkbox state changed
@@ -667,7 +668,7 @@ st.sidebar.subheader("Quick Setup")
 col_a, col_b, col_c = st.sidebar.columns(3)
 
 with col_a:
-    if st.button("Full Flexibility", help="Connect all products to all plants"):
+    if st.button("Full Flexibility", help="Connect all products to all plants", key=f"btn_full_{num_products}_{num_plants}"):
         # Create new connections dictionary
         new_connections = {}
         for product_idx in range(num_products):
@@ -688,7 +689,7 @@ with col_a:
         st.rerun()
 
 with col_b:
-    if st.button("No Flexibility", help="Connect each product to one plant (dedicated assignment)"):
+    if st.button("No Flexibility", help="Connect each product to one plant (dedicated assignment)", key=f"btn_none_{num_products}_{num_plants}"):
         # Create new connections dictionary
         new_connections = {}
         # Connect each product to a single plant, preferably different ones
@@ -711,7 +712,7 @@ with col_b:
         st.rerun()
 
 with col_c:
-    if st.button("Remove Connections", help="Remove all connections"):
+    if st.button("Remove Connections", help="Remove all connections", key=f"btn_remove_{num_products}_{num_plants}"):
         # Create empty connections dictionary
         st.session_state[session_key] = {}
         # Clear previous simulation results since network configuration changed
@@ -741,6 +742,8 @@ st.plotly_chart(fig, use_container_width=True)
 
 # Instructions
 st.info("💡 **Instructions**: Use the checkboxes in the sidebar to toggle connections between products and plants. Solid blue lines indicate active connections (flexibility).")
+
+# Rerun handling is now done directly in button handlers
 
 
 # Add horizontal divider
@@ -928,7 +931,7 @@ if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
     col_d, col_e = st.sidebar.columns(2)
 
     with col_d:
-        if st.sidebar.button("2-Flexibility", help="Create 2-chain flexibility pattern"):
+        if st.sidebar.button("2-Flexibility", help="Create 2-chain flexibility pattern", key=f"btn_2flex_{num_products}_{num_plants}"):
             # Create new connections dictionary
             new_connections = {}
             # Create 2-chain pattern: P1→Plant1,Plant2; P2→Plant2,Plant3; P3→Plant3,Plant1; etc.
@@ -953,7 +956,7 @@ if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
             st.rerun()
 
     with col_e:
-        if st.sidebar.button("3-Flexibility", help="Create 3-chain flexibility pattern"):
+        if st.sidebar.button("3-Flexibility", help="Create 3-chain flexibility pattern", key=f"btn_3flex_{num_products}_{num_plants}"):
             # Create new connections dictionary
             new_connections = {}
             # Create 3-chain pattern: P1→Plant1,Plant2,Plant3; P2→Plant2,Plant3,Plant1; etc.
