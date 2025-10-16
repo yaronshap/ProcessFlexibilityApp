@@ -584,10 +584,10 @@ def toggle_connection(product_idx: int, plant_idx: int):
 
 # Add connection grid controls
 st.sidebar.subheader("Connection Grid")
-st.sidebar.write("Check boxes to create connections:")
+st.sidebar.write("Click buttons to toggle connections:")
 
 # Add legend
-st.sidebar.write("💡 **Legend**: ✓ = Connected, ☐ = Not Connected")
+st.sidebar.write("💡 **Legend**: 🔵 = Connected, ⚪ = Not Connected")
 
 # Create a more compact grid view
 if st.sidebar.checkbox("Compact Grid View", value=True):
@@ -610,24 +610,17 @@ if st.sidebar.checkbox("Compact Grid View", value=True):
         with row_cols[0]:
             st.write(f"Product {product_idx+1}")
         
-        # Checkboxes for each plant
+        # Buttons for each plant connection
         for plant_idx in range(num_plants):
             key = (product_idx, plant_idx)
             is_connected = connections.get(key, False)
             
             with row_cols[plant_idx + 1]:
-                checkbox_key = f"compact_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
-                new_value = st.checkbox(
-                    "",
-                    value=is_connected,
-                    key=checkbox_key,
-                    label_visibility="collapsed"
-                )
-                
-                # Update connections if checkbox state changed
-                if new_value != is_connected:
+                button_key = f"btn_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
+                button_text = "🔵" if is_connected else "⚪"
+                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Plant {plant_idx+1}"):
                     current_connections = st.session_state.get(session_key, {})
-                    current_connections[key] = new_value
+                    current_connections[key] = not current_connections.get(key, False)
                     st.session_state[session_key] = current_connections
                     st.rerun()
 
@@ -644,20 +637,13 @@ else:
             is_connected = connections.get(key, False)
             
             with col:
-                if st.checkbox(
-                    f"Plant {plant_idx+1}",
-                    value=is_connected,
-                    key=f"detailed_{product_idx}_{plant_idx}"
-                ):
-                    if not is_connected:
-                        connections[key] = True
-                        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
-                        st.rerun()
-                else:
-                    if is_connected:
-                        connections[key] = False
-                        st.session_state[f'connections_{num_plants}_{num_products}'] = connections
-                        st.rerun()
+                button_text = f"Plant {plant_idx+1} 🔵" if is_connected else f"Plant {plant_idx+1} ⚪"
+                button_key = f"detailed_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
+                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Plant {plant_idx+1}"):
+                    current_connections = st.session_state.get(session_key, {})
+                    current_connections[key] = not current_connections.get(key, False)
+                    st.session_state[session_key] = current_connections
+                    st.rerun()
         
         st.sidebar.write("---")  # Separator between products
 
