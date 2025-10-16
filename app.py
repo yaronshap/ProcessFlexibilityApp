@@ -32,7 +32,8 @@ SHOW_ADVANCED_FLEXIBILITY_OPTIONS = True
 st.set_page_config(
     page_title="Process Flexibility Simulator",
     page_icon="🏭",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # Display construction warning banner
@@ -40,13 +41,27 @@ st.error("⚠️ **WARNING: This project is currently under construction!** ⚠�
          "This application is in active development. Features may be incomplete, "
          "unstable, or subject to change. Please use with caution.", icon="🚧")
 
+# Add custom CSS for smaller connection grid buttons only
+st.markdown("""
+<style>
+    /* Make only connection grid buttons smaller - target by key pattern */
+    button[key*="btn_"]:not([data-testid="baseButton-primary"]),
+    button[key*="detailed_"]:not([data-testid="baseButton-primary"]) {
+        width: 2.5rem !important;
+        height: 2rem !important;
+        font-size: 0.8rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Initialize session state
 if 'connections' not in st.session_state:
     st.session_state.connections = {}
 if 'demand_data' not in st.session_state:
     st.session_state.demand_data = {}
 
-def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict[Tuple[int, int], bool]) -> go.Figure:
+def create_bipartite_graph(num_factories: int, num_products: int, connections: Dict[Tuple[int, int], bool]) -> go.Figure:
     """Create an interactive bipartite graph visualization"""
     
     # Calculate positions
@@ -56,26 +71,26 @@ def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict
     for i in range(num_products):
         pos[f"Product_{i}"] = (0, num_products - 1 - i)  # Reverse order: 1 at top
     
-    # Position plants on the right (sorted with smaller numbers at top)
-    for i in range(num_plants):
-        pos[f"Plant_{i}"] = (2, num_plants - 1 - i)  # Reverse order: 1 at top
+    # Position factories on the right (sorted with smaller numbers at top)
+    for i in range(num_factories):
+        pos[f"Factory_{i}"] = (2, num_factories - 1 - i)  # Reverse order: 1 at top
     
     # Create traces for each edge individually to enable clicking
     traces = []
     
     # Add all possible connections
     for product_idx in range(num_products):
-        for plant_idx in range(num_plants):
-            is_connected = connections.get((product_idx, plant_idx), False)
+        for factory_idx in range(num_factories):
+            is_connected = connections.get((product_idx, factory_idx), False)
             
             # Get positions
             product_pos = pos[f"Product_{product_idx}"]
-            plant_pos = pos[f"Plant_{plant_idx}"]
+            factory_pos = pos[f"Factory_{factory_idx}"]
             
             # Create individual edge trace
             edge_trace = go.Scatter(
-                x=[product_pos[0], plant_pos[0]], 
-                y=[product_pos[1], plant_pos[1]],
+                x=[product_pos[0], factory_pos[0]], 
+                y=[product_pos[1], factory_pos[1]],
                 mode='lines',
                 line=dict(
                     width=3 if is_connected else 1,
@@ -83,10 +98,10 @@ def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict
                     dash='solid' if is_connected else 'dash'
                 ),
                 hoverinfo='text',
-                hovertext=f"Product {product_idx+1} ↔ Plant {plant_idx+1}",
-                name=f"Edge_{product_idx}_{plant_idx}",
+                hovertext=f"Product {product_idx+1} ↔ Factory {factory_idx+1}",
+                name=f"Edge_{product_idx}_{factory_idx}",
                 showlegend=False,
-                customdata=[(product_idx, plant_idx)],
+                customdata=[(product_idx, factory_idx)],
                 hovertemplate='%{hovertext}<br>Click to toggle<extra></extra>'
             )
             traces.append(edge_trace)
@@ -95,8 +110,8 @@ def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict
     product_x = [pos[f"Product_{i}"][0] for i in range(num_products)]
     product_y = [pos[f"Product_{i}"][1] for i in range(num_products)]
     
-    plant_x = [pos[f"Plant_{i}"][0] for i in range(num_plants)]
-    plant_y = [pos[f"Plant_{i}"][1] for i in range(num_plants)]
+    factory_x = [pos[f"Factory_{i}"][0] for i in range(num_factories)]
+    factory_y = [pos[f"Factory_{i}"][1] for i in range(num_factories)]
     
     # Product nodes
     product_trace = go.Scatter(
@@ -112,19 +127,19 @@ def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict
     )
     traces.append(product_trace)
     
-    # Plant nodes
-    plant_trace = go.Scatter(
-        x=plant_x, y=plant_y,
+    # Factory nodes
+    factory_trace = go.Scatter(
+        x=factory_x, y=factory_y,
         mode='markers+text',
         hoverinfo='text',
-        text=[f"Plant {i+1}" for i in range(num_plants)],
+        text=[f"Factory {i+1}" for i in range(num_factories)],
         textposition="middle center",
         marker=dict(size=60, color='lightgreen', line=dict(width=3, color='darkgreen')),
-        name='Plants',
-        hovertemplate='Plant %{text}<extra></extra>',
+        name='Factories',
+        hovertemplate='Factory %{text}<extra></extra>',
         showlegend=True
     )
-    traces.append(plant_trace)
+    traces.append(factory_trace)
     
     # Create figure
     fig = go.Figure(data=traces)
@@ -139,7 +154,7 @@ def create_bipartite_graph(num_plants: int, num_products: int, connections: Dict
         hovermode='closest',
         margin=dict(b=20,l=5,r=5,t=40),
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.5, 2.5]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.5, max(num_products, num_plants)-0.5]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-0.5, max(num_products, num_factories)-0.5]),
         plot_bgcolor='white',
         width=800,
         height=600
@@ -169,19 +184,19 @@ def generate_demand_data(num_products: int, distribution_type: str, params: Dict
     return demand_data
 
 def calculate_flexibility_metrics(connections: Dict[Tuple[int, int], bool], 
-                                num_products: int, num_plants: int) -> Dict:
+                                num_products: int, num_factories: int) -> Dict:
     """Calculate flexibility metrics"""
     
     # Count total connections
     total_connections = sum(connections.values())
-    max_possible = num_products * num_plants
+    max_possible = num_products * num_factories
     
     # Calculate flexibility ratio
     flexibility_ratio = total_connections / max_possible if max_possible > 0 else 0
     
     # Calculate average connections per product
     product_connections = {}
-    for (product_idx, plant_idx), connected in connections.items():
+    for (product_idx, factory_idx), connected in connections.items():
         if connected:
             product_connections[product_idx] = product_connections.get(product_idx, 0) + 1
     
@@ -194,9 +209,9 @@ def calculate_flexibility_metrics(connections: Dict[Tuple[int, int], bool],
         'avg_connections_per_product': avg_connections_per_product
     }
 
-def solve_maximal_matching(demands: List[float], plant_capacity: float, 
+def solve_maximal_matching(demands: List[float], factory_capacity: float, 
                           connections: Dict[Tuple[int, int], bool], 
-                          num_products: int, num_plants: int) -> Tuple[List[float], float, float]:
+                          num_products: int, num_factories: int) -> Tuple[List[float], float, float]:
     """
     Solve maximal matching problem using linear programming
     Returns: (flows, total_shipped, total_lost)
@@ -207,9 +222,9 @@ def solve_maximal_matching(demands: List[float], plant_capacity: float,
     edge_indices = {}
     var_idx = 0
     
-    for (product_idx, plant_idx), connected in connections.items():
+    for (product_idx, factory_idx), connected in connections.items():
         if connected:
-            edge_indices[(product_idx, plant_idx)] = var_idx
+            edge_indices[(product_idx, factory_idx)] = var_idx
             edge_vars.append(var_idx)
             var_idx += 1
     
@@ -226,20 +241,20 @@ def solve_maximal_matching(demands: List[float], plant_capacity: float,
     # Demand constraints: sum of flows from each product <= demand
     for product_idx in range(num_products):
         constraint = [0.0] * len(edge_vars)
-        for (p_idx, plant_idx), connected in connections.items():
+        for (p_idx, factory_idx), connected in connections.items():
             if connected and p_idx == product_idx:
-                constraint[edge_indices[(p_idx, plant_idx)]] = 1.0
+                constraint[edge_indices[(p_idx, factory_idx)]] = 1.0
         A_ub.append(constraint)
         b_ub.append(demands[product_idx])
     
-    # Capacity constraints: sum of flows to each plant <= capacity
-    for plant_idx in range(num_plants):
+    # Capacity constraints: sum of flows to each factory <= capacity
+    for factory_idx in range(num_factories):
         constraint = [0.0] * len(edge_vars)
         for (product_idx, p_idx), connected in connections.items():
-            if connected and p_idx == plant_idx:
+            if connected and p_idx == factory_idx:
                 constraint[edge_indices[(product_idx, p_idx)]] = 1.0
         A_ub.append(constraint)
-        b_ub.append(plant_capacity)
+        b_ub.append(factory_capacity)
     
     # Bounds: flows >= 0
     bounds = [(0, None)] * len(edge_vars)
@@ -260,8 +275,8 @@ def solve_maximal_matching(demands: List[float], plant_capacity: float,
         # Fallback: return zeros
         return [0.0] * len(edge_vars), 0.0, sum(demands)
 
-def run_simulation(num_replications: int, num_products: int, num_plants: int, 
-                  plant_capacity: float, connections: Dict[Tuple[int, int], bool],
+def run_simulation(num_replications: int, num_products: int, num_factories: int, 
+                  factory_capacity: float, connections: Dict[Tuple[int, int], bool],
                   demand_params: Dict, progress_bar=None) -> pd.DataFrame:
     """Run the simulation and return results as DataFrame"""
     
@@ -285,12 +300,12 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
         
         # Solve maximal matching
         flows, total_shipped, total_lost = solve_maximal_matching(
-            demands, plant_capacity, connections, num_products, num_plants
+            demands, factory_capacity, connections, num_products, num_factories
         )
         
         # Calculate metrics
         total_demand = sum(demands)
-        total_capacity = plant_capacity * num_plants
+        total_capacity = factory_capacity * num_factories
         fill_rate = (total_shipped / total_demand * 100) if total_demand > 0 else 0
         
         # Create row data
@@ -304,14 +319,14 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
             row[f'Demand_Product_{i+1}'] = round(demand, 2)
         
         # Add capacity columns
-        for i in range(num_plants):
-            row[f'Capacity_Plant_{i+1}'] = plant_capacity
+        for i in range(num_factories):
+            row[f'Capacity_Factory_{i+1}'] = factory_capacity
         
         # Add flow columns
         flow_idx = 0
-        for (product_idx, plant_idx), connected in connections.items():
+        for (product_idx, factory_idx), connected in connections.items():
             if connected:
-                row[f'Flow_Product_{product_idx+1}_Plant_{plant_idx+1}'] = round(flows[flow_idx], 2)
+                row[f'Flow_Product_{product_idx+1}_Factory_{factory_idx+1}'] = round(flows[flow_idx], 2)
                 flow_idx += 1
         
         # Add summary columns
@@ -329,19 +344,19 @@ def run_simulation(num_replications: int, num_products: int, num_plants: int,
     
     return pd.DataFrame(results)
 
-def create_network_matrix(num_products: int, num_plants: int, connections: Dict[Tuple[int, int], bool]) -> pd.DataFrame:
+def create_network_matrix(num_products: int, num_factories: int, connections: Dict[Tuple[int, int], bool]) -> pd.DataFrame:
     """Create a matrix representation of the network connections"""
-    # Create matrix with products as rows and plants as columns
+    # Create matrix with products as rows and factories as columns
     matrix_data = []
     for product_idx in range(num_products):
         row = []
-        for plant_idx in range(num_plants):
+        for factory_idx in range(num_factories):
             # 1 if connected, 0 if not connected
-            row.append(1 if connections.get((product_idx, plant_idx), False) else 0)
+            row.append(1 if connections.get((product_idx, factory_idx), False) else 0)
         matrix_data.append(row)
     
     # Create DataFrame with proper labels
-    columns = [f"Plant {i+1}" for i in range(num_plants)]
+    columns = [f"Factory {i+1}" for i in range(num_factories)]
     index = [f"Product {i+1}" for i in range(num_products)]
     
     return pd.DataFrame(matrix_data, columns=columns, index=index)
@@ -382,7 +397,7 @@ def create_summary_stats(results_df: pd.DataFrame) -> pd.DataFrame:
     }
     return pd.DataFrame(summary_data)
 
-def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: int, 
+def create_excel_file(results_df: pd.DataFrame, num_products: int, num_factories: int, 
                      connections: Dict[Tuple[int, int], bool], num_replications: int, progress_bar=None) -> bytes:
     """Create an Excel file with multiple sheets containing network layout, simulation results, and summary"""
     
@@ -414,11 +429,11 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_plants: i
     # Add title
     ws1['A1'] = "Network Configuration Matrix"
     ws1['A1'].font = Font(bold=True, size=14)
-    ws1['A2'] = f"Products: {num_products}, Plants: {num_plants}"
+    ws1['A2'] = f"Products: {num_products}, Factorys: {num_factories}"
     ws1['A2'].font = Font(italic=True)
     
     # Create network matrix
-    network_matrix = create_network_matrix(num_products, num_plants, connections)
+    network_matrix = create_network_matrix(num_products, num_factories, connections)
     
     # Add matrix to sheet starting at row 4
     start_row = 4
@@ -539,10 +554,10 @@ st.markdown("Based on Jordan and Graves (1995): 'Principles on the Benefits of M
 st.sidebar.info("**🏗️ Network Configuration**")
 
 # Input fields
-num_plants_products = st.sidebar.number_input("Number of Plants and Products", min_value=1, max_value=10, value=6)
-num_plants = num_plants_products
-num_products = num_plants_products
-plant_capacity = st.sidebar.number_input("Plant Capacity", min_value=1, max_value=1000, value=100)
+num_factories_products = st.sidebar.number_input("Number of Factorys and Products", min_value=1, max_value=10, value=6)
+num_factories = num_factories_products
+num_products = num_factories_products
+factory_capacity = st.sidebar.number_input("Factory Capacity", min_value=1, max_value=1000, value=100)
 
 # Demand distribution configuration
 st.sidebar.subheader("Demand Distribution")
@@ -556,24 +571,24 @@ demand_max = st.sidebar.number_input("Upper Bound", min_value=1.0, max_value=100
 distribution_type = "Truncated Normal"
 
 # Initialize connections if not exists
-session_key = f'connections_{num_plants}_{num_products}'
+session_key = f'connections_{num_factories}_{num_products}'
 if session_key not in st.session_state:
     st.session_state[session_key] = {}
     # Set "No Flexibility" as default only for new configurations
     default_connections = {}
     for product_idx in range(num_products):
-        # Use modulo to cycle through plants, ensuring different assignments when possible
-        plant_idx = product_idx % num_plants
-        default_connections[(product_idx, plant_idx)] = True
+        # Use modulo to cycle through factories, ensuring different assignments when possible
+        factory_idx = product_idx % num_factories
+        default_connections[(product_idx, factory_idx)] = True
     st.session_state[session_key] = default_connections
 
 # Get connections with fallback
 connections = st.session_state.get(session_key, {})
 
 # Add connection toggle functionality
-def toggle_connection(product_idx: int, plant_idx: int):
-    """Toggle connection between product and plant"""
-    key = (product_idx, plant_idx)
+def toggle_connection(product_idx: int, factory_idx: int):
+    """Toggle connection between product and factory"""
+    key = (product_idx, factory_idx)
     current_connections = st.session_state.get(session_key, {})
     if key in current_connections:
         current_connections[key] = not current_connections[key]
@@ -591,34 +606,34 @@ st.sidebar.write("💡 **Legend**: 🔵 = Connected, ⚪ = Not Connected")
 
 # Create a more compact grid view
 if st.sidebar.checkbox("Compact Grid View", value=True):
-    # Compact grid: Products as rows, Plants as columns
-    st.sidebar.write("**Products → Plants**")
+    # Compact grid: Products as rows, Factorys as columns
+    st.sidebar.write("**Products → Factorys**")
     
-    # Header row with plant labels
-    header_cols = st.sidebar.columns(num_plants + 1)
+    # Header row with factory labels
+    header_cols = st.sidebar.columns(num_factories + 1)
     with header_cols[0]:
-        st.write("**Product**")
-    for plant_idx in range(num_plants):
-        with header_cols[plant_idx + 1]:
-            st.write(f"**Plant {plant_idx+1}**")
+        st.markdown("<small><strong>&nbsp;</strong></small>", unsafe_allow_html=True)
+    for factory_idx in range(num_factories):
+        with header_cols[factory_idx + 1]:
+            st.markdown(f"<small><strong>F{factory_idx+1}</strong></small>", unsafe_allow_html=True)
     
     # Data rows
     for product_idx in range(num_products):
-        row_cols = st.sidebar.columns(num_plants + 1)
+        row_cols = st.sidebar.columns(num_factories + 1)
         
         # Product label
         with row_cols[0]:
-            st.write(f"Product {product_idx+1}")
+            st.markdown(f"<small><strong>P{product_idx+1}</strong></small>", unsafe_allow_html=True)
         
-        # Buttons for each plant connection
-        for plant_idx in range(num_plants):
-            key = (product_idx, plant_idx)
+        # Buttons for each factory connection
+        for factory_idx in range(num_factories):
+            key = (product_idx, factory_idx)
             is_connected = connections.get(key, False)
             
-            with row_cols[plant_idx + 1]:
-                button_key = f"btn_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
+            with row_cols[factory_idx + 1]:
+                button_key = f"btn_{num_products}_{num_factories}_{product_idx}_{factory_idx}"
                 button_text = "🔵" if is_connected else "⚪"
-                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Plant {plant_idx+1}"):
+                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Factory {factory_idx+1}"):
                     current_connections = st.session_state.get(session_key, {})
                     current_connections[key] = not current_connections.get(key, False)
                     st.session_state[session_key] = current_connections
@@ -629,17 +644,17 @@ else:
     for product_idx in range(num_products):
         st.sidebar.write(f"**Product {product_idx+1}**")
         
-        # Create columns for plants
-        cols = st.sidebar.columns(num_plants)
+        # Create columns for factories
+        cols = st.sidebar.columns(num_factories)
         
-        for plant_idx, col in enumerate(cols):
-            key = (product_idx, plant_idx)
+        for factory_idx, col in enumerate(cols):
+            key = (product_idx, factory_idx)
             is_connected = connections.get(key, False)
             
             with col:
-                button_text = f"Plant {plant_idx+1} 🔵" if is_connected else f"Plant {plant_idx+1} ⚪"
-                button_key = f"detailed_{num_products}_{num_plants}_{product_idx}_{plant_idx}"
-                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Plant {plant_idx+1}"):
+                button_text = f"F{factory_idx+1} 🔵" if is_connected else f"F{factory_idx+1} ⚪"
+                button_key = f"detailed_{num_products}_{num_factories}_{product_idx}_{factory_idx}"
+                if st.button(button_text, key=button_key, help=f"Toggle Product {product_idx+1} ↔ Factory {factory_idx+1}"):
                     current_connections = st.session_state.get(session_key, {})
                     current_connections[key] = not current_connections.get(key, False)
                     st.session_state[session_key] = current_connections
@@ -654,12 +669,12 @@ st.sidebar.subheader("Quick Setup")
 col_a, col_b, col_c = st.sidebar.columns(3)
 
 with col_a:
-    if st.button("Full Flexibility", help="Connect all products to all plants", key=f"btn_full_{num_products}_{num_plants}"):
+    if st.button("Full Flexibility", help="Connect all products to all factories", key=f"btn_full_{num_products}_{num_factories}"):
         # Create new connections dictionary
         new_connections = {}
         for product_idx in range(num_products):
-            for plant_idx in range(num_plants):
-                new_connections[(product_idx, plant_idx)] = True
+            for factory_idx in range(num_factories):
+                new_connections[(product_idx, factory_idx)] = True
         st.session_state[session_key] = new_connections
         # Clear previous simulation results since network configuration changed
         if 'simulation_completed' in st.session_state:
@@ -675,14 +690,14 @@ with col_a:
         st.rerun()
 
 with col_b:
-    if st.button("No Flexibility", help="Connect each product to one plant (dedicated assignment)", key=f"btn_none_{num_products}_{num_plants}"):
+    if st.button("No Flexibility", help="Connect each product to one factory (dedicated assignment)", key=f"btn_none_{num_products}_{num_factories}"):
         # Create new connections dictionary
         new_connections = {}
-        # Connect each product to a single plant, preferably different ones
+        # Connect each product to a single factory, preferably different ones
         for product_idx in range(num_products):
-            # Use modulo to cycle through plants, ensuring different assignments when possible
-            plant_idx = product_idx % num_plants
-            new_connections[(product_idx, plant_idx)] = True
+            # Use modulo to cycle through factories, ensuring different assignments when possible
+            factory_idx = product_idx % num_factories
+            new_connections[(product_idx, factory_idx)] = True
         st.session_state[session_key] = new_connections
         # Clear previous simulation results since network configuration changed
         if 'simulation_completed' in st.session_state:
@@ -696,9 +711,10 @@ with col_b:
         if 'excel_filename' in st.session_state:
             del st.session_state.excel_filename
         st.rerun()
+    
 
 with col_c:
-    if st.button("Remove Connections", help="Remove all connections", key=f"btn_remove_{num_products}_{num_plants}"):
+    if st.button("Remove Connections", help="Remove all connections", key=f"btn_remove_{num_products}_{num_factories}"):
         # Create empty connections dictionary
         st.session_state[session_key] = {}
         # Clear previous simulation results since network configuration changed
@@ -714,6 +730,62 @@ with col_c:
             del st.session_state.excel_filename
         st.rerun()
 
+# Second row: 2-Flexibility and 3-Flexibility buttons (if enabled)
+if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
+    col_d, col_e, col_f = st.sidebar.columns(3)
+    
+    with col_d:
+        if st.button("2-Flexibility", help="Create 2-chain flexibility pattern", key=f"btn_2flex_{num_products}_{num_factories}"):
+            # Create new connections dictionary
+            new_connections = {}
+            # Create 2-chain pattern: P1→Factory1,Factory2; P2→Factory2,Factory3; P3→Factory3,Factory1; etc.
+            for product_idx in range(num_products):
+                # Each product connects to 2 factories in a chain pattern
+                factory1_idx = product_idx % num_factories
+                factory2_idx = (product_idx + 1) % num_factories
+                new_connections[(product_idx, factory1_idx)] = True
+                new_connections[(product_idx, factory2_idx)] = True
+            st.session_state[session_key] = new_connections
+            # Clear previous simulation results since network configuration changed
+            if 'simulation_completed' in st.session_state:
+                del st.session_state.simulation_completed
+            if 'simulation_results' in st.session_state:
+                del st.session_state.simulation_results
+            if 'excel_ready' in st.session_state:
+                del st.session_state.excel_ready
+            if 'excel_data' in st.session_state:
+                del st.session_state.excel_data
+            if 'excel_filename' in st.session_state:
+                del st.session_state.excel_filename
+            st.rerun()
+
+    with col_e:
+        if st.button("3-Flexibility", help="Create 3-chain flexibility pattern", key=f"btn_3flex_{num_products}_{num_factories}"):
+            # Create new connections dictionary
+            new_connections = {}
+            # Create 3-chain pattern: P1→Factory1,Factory2,Factory3; P2→Factory2,Factory3,Factory1; etc.
+            for product_idx in range(num_products):
+                # Each product connects to 3 factories in a chain pattern
+                factory1_idx = product_idx % num_factories
+                factory2_idx = (product_idx + 1) % num_factories
+                factory3_idx = (product_idx + 2) % num_factories
+                new_connections[(product_idx, factory1_idx)] = True
+                new_connections[(product_idx, factory2_idx)] = True
+                new_connections[(product_idx, factory3_idx)] = True
+            st.session_state[session_key] = new_connections
+            # Clear previous simulation results since network configuration changed
+            if 'simulation_completed' in st.session_state:
+                del st.session_state.simulation_completed
+            if 'simulation_results' in st.session_state:
+                del st.session_state.simulation_results
+            if 'excel_ready' in st.session_state:
+                del st.session_state.excel_ready
+            if 'excel_data' in st.session_state:
+                del st.session_state.excel_data
+            if 'excel_filename' in st.session_state:
+                del st.session_state.excel_filename
+            st.rerun()
+
 
 
 
@@ -723,11 +795,11 @@ with col_c:
 connections = st.session_state.get(session_key, {})
 
 # Create the graph
-fig = create_bipartite_graph(num_plants, num_products, connections)
+fig = create_bipartite_graph(num_factories, num_products, connections)
 st.plotly_chart(fig, use_container_width=True)
 
 # Instructions
-st.info("💡 **Instructions**: Use the checkboxes in the sidebar to toggle connections between products and plants. Solid blue lines indicate active connections (flexibility).")
+st.info("💡 **Instructions**: Use the checkboxes in the sidebar to toggle connections between products and factories. Solid blue lines indicate active connections (flexibility).")
 
 # Rerun handling is now done directly in button handlers
 
@@ -742,7 +814,33 @@ st.sidebar.success("**📊 Analysis & Simulation**")
 st.sidebar.subheader("Simulation Parameters")
 num_replications = st.sidebar.number_input("Number of Replications", min_value=1, max_value=10000, value=100, step=100)
 
-if st.sidebar.button("🚀 Run Simulator", type="primary"):
+# Add specific CSS for Run Simulator button
+st.markdown("""
+<style>
+    div[data-testid="stSidebar"] button[data-testid="baseButton-primary"] {
+        width: 100% !important;
+        min-width: 200px !important;
+        max-width: none !important;
+        font-size: 1rem !important;
+        padding: 0.75rem 1.5rem !important;
+    }
+    
+    /* Alternative approach - target by button text content */
+    button:has-text("Run Simulator") {
+        width: 100% !important;
+        min-width: 200px !important;
+    }
+    
+    /* Even more specific targeting */
+    .stButton > button[data-testid="baseButton-primary"] {
+        width: 100% !important;
+        min-width: 200px !important;
+        max-width: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+if st.sidebar.button("🚀 Run Simulator", type="primary", key="run_simulator_btn"):
     # Create progress bar for simulation
     progress_bar = st.sidebar.progress(0)
     status_text = st.sidebar.empty()
@@ -757,7 +855,7 @@ if st.sidebar.button("🚀 Run Simulator", type="primary"):
     
     status_text.text("Running simulation...")
     simulation_results = run_simulation(
-        num_replications, num_products, num_plants, plant_capacity, connections, demand_params, progress_bar
+        num_replications, num_products, num_factories, factory_capacity, connections, demand_params, progress_bar
     )
     
     # Store results in session state
@@ -808,7 +906,7 @@ if st.session_state.get('simulation_completed', False):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         excel_status.text("Generating Excel file...")
-        excel_data = create_excel_file(results_df, num_products, num_plants, connections, num_replications, excel_progress)
+        excel_data = create_excel_file(results_df, num_products, num_factories, connections, num_replications, excel_progress)
         
         # Clear progress indicators
         excel_progress.empty()
@@ -816,7 +914,7 @@ if st.session_state.get('simulation_completed', False):
         
         # Store Excel data in session state
         st.session_state.excel_data = excel_data
-        st.session_state.excel_filename = f"{timestamp}_flexibility_simulation_{num_products}products_{num_plants}plants_{num_edges}edges_{num_replications}reps.xlsx"
+        st.session_state.excel_filename = f"{timestamp}_flexibility_simulation_{num_products}products_{num_factories}factories_{num_edges}edges_{num_replications}reps.xlsx"
         st.session_state.excel_ready = True
         
         st.success("Excel file generated successfully!")
@@ -875,7 +973,7 @@ if st.session_state.demand_data:
     
     # Calculate theoretical benefits
     total_demand = sum([np.mean(demands) for demands in st.session_state.demand_data.values()])
-    total_capacity = plant_capacity * num_plants
+    total_capacity = factory_capacity * num_factories
     
     col_opt1, col_opt2, col_opt3 = st.columns(3)
     
@@ -891,6 +989,9 @@ if st.session_state.demand_data:
     
     # Flexibility benefits analysis
     st.subheader("Flexibility Benefits Analysis")
+    
+    # Calculate flexibility metrics
+    metrics = calculate_flexibility_metrics(connections, num_products, num_factories)
     
     # Calculate flexibility benefits based on Jordan & Graves principles
     flexibility_benefits = {
@@ -911,60 +1012,4 @@ st.sidebar.markdown("**Email:** yaron.shaposhnik@simon.rochester.edu")
 st.sidebar.markdown("**Year:** 2025")
 st.sidebar.markdown("*Process Flexibility Simulation Tool*")
 
-# Advanced flexibility buttons (controlled by SHOW_ADVANCED_FLEXIBILITY_OPTIONS)
-if SHOW_ADVANCED_FLEXIBILITY_OPTIONS:
-    st.sidebar.markdown("**Advanced Flexibility Options:**")
-    col_d, col_e = st.sidebar.columns(2)
-
-    with col_d:
-        if st.sidebar.button("2-Flexibility", help="Create 2-chain flexibility pattern", key=f"btn_2flex_{num_products}_{num_plants}"):
-            # Create new connections dictionary
-            new_connections = {}
-            # Create 2-chain pattern: P1→Plant1,Plant2; P2→Plant2,Plant3; P3→Plant3,Plant1; etc.
-            for product_idx in range(num_products):
-                # Each product connects to 2 plants in a chain pattern
-                plant1_idx = product_idx % num_plants
-                plant2_idx = (product_idx + 1) % num_plants
-                new_connections[(product_idx, plant1_idx)] = True
-                new_connections[(product_idx, plant2_idx)] = True
-            st.session_state[session_key] = new_connections
-            # Clear previous simulation results since network configuration changed
-            if 'simulation_completed' in st.session_state:
-                del st.session_state.simulation_completed
-            if 'simulation_results' in st.session_state:
-                del st.session_state.simulation_results
-            if 'excel_ready' in st.session_state:
-                del st.session_state.excel_ready
-            if 'excel_data' in st.session_state:
-                del st.session_state.excel_data
-            if 'excel_filename' in st.session_state:
-                del st.session_state.excel_filename
-            st.rerun()
-
-    with col_e:
-        if st.sidebar.button("3-Flexibility", help="Create 3-chain flexibility pattern", key=f"btn_3flex_{num_products}_{num_plants}"):
-            # Create new connections dictionary
-            new_connections = {}
-            # Create 3-chain pattern: P1→Plant1,Plant2,Plant3; P2→Plant2,Plant3,Plant1; etc.
-            for product_idx in range(num_products):
-                # Each product connects to 3 plants in a chain pattern
-                plant1_idx = product_idx % num_plants
-                plant2_idx = (product_idx + 1) % num_plants
-                plant3_idx = (product_idx + 2) % num_plants
-                new_connections[(product_idx, plant1_idx)] = True
-                new_connections[(product_idx, plant2_idx)] = True
-                new_connections[(product_idx, plant3_idx)] = True
-            st.session_state[session_key] = new_connections
-            # Clear previous simulation results since network configuration changed
-            if 'simulation_completed' in st.session_state:
-                del st.session_state.simulation_completed
-            if 'simulation_results' in st.session_state:
-                del st.session_state.simulation_results
-            if 'excel_ready' in st.session_state:
-                del st.session_state.excel_ready
-            if 'excel_data' in st.session_state:
-                del st.session_state.excel_data
-            if 'excel_filename' in st.session_state:
-                del st.session_state.excel_filename
-            st.rerun()
 

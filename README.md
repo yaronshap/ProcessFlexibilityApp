@@ -8,8 +8,8 @@ An interactive Streamlit application for exploring manufacturing process flexibi
 
 ## Features
 
-- **Interactive Bipartite Graph**: Visualize product-plant connections with clickable edges
-- **Flexibility Configuration**: Toggle connections between products and plants
+- **Interactive Bipartite Graph**: Visualize product-factory connections with clickable edges
+- **Flexibility Configuration**: Toggle connections between products and factories using compact button grid
 - **Advanced Flexibility Patterns**: 2-Flexibility and 3-Flexibility chain patterns
 - **Demand Simulation**: Generate and visualize demand distributions with progress tracking
 - **Monte Carlo Simulation**: Run multiple replications with real-time progress bars
@@ -33,17 +33,18 @@ That's it! The app will open in your browser and you can start exploring process
 ## Usage
 
 ### Configuration
-- Set the number of plants and products using the sidebar controls
-- Configure plant capacity
+- Set the number of factories and products using the sidebar controls
+- Configure factory capacity
 - Adjust truncated normal demand distribution parameters (mean, standard deviation, bounds)
 
 ### Network Visualization
-- The bipartite graph shows products on the left and plants on the right
+- The bipartite graph shows products on the left and factories on the right
 - Dashed gray lines represent potential connections
 - Solid blue lines represent active connections (flexibility)
-- Use the sidebar buttons to toggle specific connections
+- Use the compact button grid in the sidebar to toggle specific connections
 - Use "Full Flexibility" and "No Flexibility" buttons for quick setup
 - Try "2-Flexibility" and "3-Flexibility" for advanced chain patterns
+- Connection grid uses compact P1, P2, F1, F2 labels for efficient space usage
 
 ### Simulation & Analysis
 - Click "🚀 Run Simulator" to start Monte Carlo simulation
@@ -57,6 +58,7 @@ That's it! The app will open in your browser and you can start exploring process
 - Excel files include three sheets: Network Layout, Simulation Results, and Summary Statistics
 - Files are automatically timestamped and include network configuration details
 - Progress tracking shows Excel generation status
+- Filenames include product count, factory count, edge count, and replication count
 
 ## Technical Details
 
@@ -67,3 +69,4 @@ That's it! The app will open in your browser and you can start exploring process
 - OpenPyXL for Excel file generation
 - SciPy for optimization algorithms
 - Real-time progress tracking with Streamlit progress bars
+- Custom CSS for optimized button sizing and layout
