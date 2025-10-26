@@ -209,7 +209,7 @@ def calculate_flexibility_metrics(connections: Dict[Tuple[int, int], bool],
         'avg_connections_per_product': avg_connections_per_product
     }
 
-def solve_maximal_matching(demands: List[float], factory_capacity: float, 
+def solve_maximal_matching(demands: List[float], factory_capacities: List[float], 
                           connections: Dict[Tuple[int, int], bool], 
                           num_products: int, num_factories: int) -> Tuple[List[float], float, float]:
     """
@@ -254,7 +254,7 @@ def solve_maximal_matching(demands: List[float], factory_capacity: float,
             if connected and p_idx == factory_idx:
                 constraint[edge_indices[(product_idx, p_idx)]] = 1.0
         A_ub.append(constraint)
-        b_ub.append(factory_capacity)
+        b_ub.append(factory_capacities[factory_idx])
     
     # Bounds: flows >= 0
     bounds = [(0, None)] * len(edge_vars)
@@ -276,7 +276,7 @@ def solve_maximal_matching(demands: List[float], factory_capacity: float,
         return [0.0] * len(edge_vars), 0.0, sum(demands)
 
 def run_simulation(num_replications: int, num_products: int, num_factories: int, 
-                  factory_capacity: float, connections: Dict[Tuple[int, int], bool],
+                  factory_capacities: List[float], connections: Dict[Tuple[int, int], bool],
                   demand_params: Dict, progress_bar=None) -> pd.DataFrame:
     """Run the simulation and return results as DataFrame"""
     
@@ -300,12 +300,12 @@ def run_simulation(num_replications: int, num_products: int, num_factories: int,
         
         # Solve maximal matching
         flows, total_shipped, total_lost = solve_maximal_matching(
-            demands, factory_capacity, connections, num_products, num_factories
+            demands, factory_capacities, connections, num_products, num_factories
         )
         
         # Calculate metrics
         total_demand = sum(demands)
-        total_capacity = factory_capacity * num_factories
+        total_capacity = sum(factory_capacities)
         fill_rate = (total_shipped / total_demand * 100) if total_demand > 0 else 0
         
         # Create row data
@@ -320,7 +320,7 @@ def run_simulation(num_replications: int, num_products: int, num_factories: int,
         
         # Add capacity columns
         for i in range(num_factories):
-            row[f'Capacity_Factory_{i+1}'] = factory_capacity
+            row[f'Capacity_Factory_{i+1}'] = factory_capacities[i]
         
         # Add flow columns
         flow_idx = 0
@@ -398,7 +398,7 @@ def create_summary_stats(results_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(summary_data)
 
 def create_excel_file(results_df: pd.DataFrame, num_products: int, num_factories: int, 
-                     connections: Dict[Tuple[int, int], bool], num_replications: int, progress_bar=None) -> bytes:
+                     connections: Dict[Tuple[int, int], bool], factory_capacities: List[float], num_replications: int, progress_bar=None) -> bytes:
     """Create an Excel file with multiple sheets containing network layout, simulation results, and summary"""
     
     # Create workbook
@@ -429,14 +429,19 @@ def create_excel_file(results_df: pd.DataFrame, num_products: int, num_factories
     # Add title
     ws1['A1'] = "Network Configuration Matrix"
     ws1['A1'].font = Font(bold=True, size=14)
-    ws1['A2'] = f"Products: {num_products}, Factorys: {num_factories}"
+    ws1['A2'] = f"Products: {num_products}, Factories: {num_factories}"
     ws1['A2'].font = Font(italic=True)
+    
+    # Add capacity information
+    capacity_text = f"Factory Capacities: {', '.join([f'F{i+1}={cap}' for i, cap in enumerate(factory_capacities)])}"
+    ws1['A3'] = capacity_text
+    ws1['A3'].font = Font(italic=True)
     
     # Create network matrix
     network_matrix = create_network_matrix(num_products, num_factories, connections)
     
-    # Add matrix to sheet starting at row 4
-    start_row = 4
+    # Add matrix to sheet starting at row 5 (moved down due to capacity info)
+    start_row = 5
     for r_idx, (product, row_data) in enumerate(network_matrix.iterrows()):
         ws1.cell(row=start_row + r_idx, column=1, value=product)
         for c_idx, value in enumerate(row_data):
@@ -557,7 +562,27 @@ st.sidebar.info("**🏗️ Network Configuration**")
 num_factories_products = st.sidebar.number_input("Number of Factorys and Products", min_value=1, max_value=10, value=6)
 num_factories = num_factories_products
 num_products = num_factories_products
-factory_capacity = st.sidebar.number_input("Factory Capacity", min_value=1, max_value=1000, value=100)
+
+# Factory capacity configuration
+st.sidebar.subheader("Factory Capacity Configuration")
+symmetric_capacity = st.sidebar.checkbox("Symmetric capacity?", value=True, help="If checked, all factories have the same capacity. If unchecked, you can set individual capacities.")
+
+if symmetric_capacity:
+    factory_capacity = st.sidebar.number_input("Factory Capacity", min_value=1, max_value=1000, value=100)
+    factory_capacities = [factory_capacity] * num_factories
+else:
+    st.sidebar.write("**Individual Factory Capacities:**")
+    factory_capacities = []
+    for i in range(num_factories):
+        capacity = st.sidebar.number_input(
+            f"Factory {i+1} Capacity", 
+            min_value=1, 
+            max_value=1000, 
+            value=100, 
+            step=10,
+            key=f"factory_capacity_{i}"
+        )
+        factory_capacities.append(capacity)
 
 # Demand distribution configuration
 st.sidebar.subheader("Demand Distribution")
@@ -812,7 +837,7 @@ st.sidebar.success("**📊 Analysis & Simulation**")
 
 # Replication input and simulator button
 st.sidebar.subheader("Simulation Parameters")
-num_replications = st.sidebar.number_input("Number of Replications", min_value=1, max_value=10000, value=100, step=100)
+num_replications = st.sidebar.number_input("Number of Replications", min_value=1, max_value=10000, value=1000, step=100)
 
 # Add specific CSS for Run Simulator button
 st.markdown("""
@@ -855,7 +880,7 @@ if st.sidebar.button("🚀 Run Simulator", type="primary", key="run_simulator_bt
     
     status_text.text("Running simulation...")
     simulation_results = run_simulation(
-        num_replications, num_products, num_factories, factory_capacity, connections, demand_params, progress_bar
+        num_replications, num_products, num_factories, factory_capacities, connections, demand_params, progress_bar
     )
     
     # Store results in session state
@@ -906,7 +931,7 @@ if st.session_state.get('simulation_completed', False):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         excel_status.text("Generating Excel file...")
-        excel_data = create_excel_file(results_df, num_products, num_factories, connections, num_replications, excel_progress)
+        excel_data = create_excel_file(results_df, num_products, num_factories, connections, factory_capacities, num_replications, excel_progress)
         
         # Clear progress indicators
         excel_progress.empty()
@@ -973,7 +998,7 @@ if st.session_state.demand_data:
     
     # Calculate theoretical benefits
     total_demand = sum([np.mean(demands) for demands in st.session_state.demand_data.values()])
-    total_capacity = factory_capacity * num_factories
+    total_capacity = sum(factory_capacities)
     
     col_opt1, col_opt2, col_opt3 = st.columns(3)
     
