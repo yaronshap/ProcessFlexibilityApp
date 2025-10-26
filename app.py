@@ -901,15 +901,15 @@ if st.session_state.get('simulation_completed', False):
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Average Fill Rate", f"{results_df['Fill_Rate'].mean():.1f}%")
+        st.metric("Average Fill Rate", f"{results_df['Fill_Rate'].mean():.2f}%")
     with col2:
         avg_sold = results_df['Units_Sold'].mean()
         std_sold = results_df['Units_Sold'].std()
-        st.metric("Average Units Sold", f"{avg_sold:.1f} ± {std_sold:.1f}")
+        st.metric("Average Units Sold", f"{avg_sold:.2f} ± {std_sold:.2f}")
     with col3:
         avg_lost = results_df['Units_Lost'].mean()
         std_lost = results_df['Units_Lost'].std()
-        st.metric("Average Units Lost", f"{avg_lost:.1f} ± {std_lost:.1f}")
+        st.metric("Average Units Lost", f"{avg_lost:.2f} ± {std_lost:.2f}")
     with col4:
         st.metric("Total Replications", len(results_df))
     
